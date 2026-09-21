@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Nrfr</h1>
-  <p>🌍 免 Root 的 SIM 卡国家码修改工具，让你的网络更自由</p>
+  <p>🌍 基于 Root 的 SIM 卡国家码修改工具，让你的网络更自由</p>
 
   <p>
     <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android" alt="Platform">
@@ -30,8 +30,8 @@
    <br>
 </div>
 
-Nrfr 是一款强大的 SIM 卡国家码修改工具，无需 Root 权限即可修改 SIM 卡国家码。本项目完全基于 Android 系统原生 API 实现，不依赖
-Xposed、Magisk 等任何第三方框架，仅通过调用系统级接口实现功能。通过修改国家码，你可以：
+Nrfr 是一款强大的 SIM 卡国家码修改工具，通过 Root 权限调用 Android 系统级接口修改 SIM 卡国家码。本项目基于系统原生 API 实现，不依赖
+Xposed 等模块框架，仅在 root 进程内直连系统级接口实现功能。通过修改国家码，你可以：
 
 - 🌏 解锁运营商限制，使用更多本地功能
 - 🔓 突破某些区域限制的应用和服务
@@ -81,67 +81,49 @@ Nrfr 通过调用 Android 系统级 API（CarrierConfigLoader）修改系统内�
 
 - 完全在系统层面工作，不会对 SIM 卡本身进行任何修改或造成损坏
 - 仅改变系统对 SIM 卡信息的读取方式
-- 基于 Android 原生 API 实现，不依赖任何第三方框架（如 Xposed、Magisk 等）
-- 通过 Shizuku 仅提供必要的权限支持
+- 基于 Android 原生 API 实现，不依赖 Xposed 等模块框架
+- 通过 Root 权限（libsu RootService）在 UID 0 进程内直连 `ICarrierConfigLoader` 提供必要的系统级调用能力
 - 所有修改都是可逆的，随时可以还原
 
 ## ✨ 特性
 
 - 🔒 安全可靠
-   - 无需 Root 权限
    - 不修改系统文件
    - 不影响系统稳定性
    - 不会对 SIM 卡造成任何影响
 - 🔄 功能完善
    - 支持随时还原修改
    - 支持双卡设备，可分别配置
-   - 一次修改永久生效，重启后保持
 - 🚀 简单易用
-   - 一键启动工具
    - 智能检测设备和 SIM 卡状态
-   - 自动安装所需应用
    - 简洁优雅的用户界面
    - 轻量且高效，安装包体积小
 
+> ⚠️ **关于重启后的行为**：Root 进程（UID 0）不在框架允许写入持久化配置的 UID 白名单内，因此修改采用内存态覆盖，**重启设备后会失效**，需重新打开 Nrfr 应用再设置一次。
+
 ## ⚠️ 注意事项
 
-- 需要安装并启用 Shizuku
+- 需要已 Root 的设备（Magisk / KernelSU / APatch），首次运行需在 Root 管理器中授予 Nrfr Root 权限
 - 修改国家码可能会影响运营商服务，请谨慎操作
+- 修改为内存态覆盖，**重启设备后失效**，需重新打开应用再设置一次
 - 部分设备可能不支持修改国家码
 - 如需还原设置，请使用应用内的还原功能
 
 ## 🚀 快速开始
 
-下载页面有两个文件，一个是含快速启动工具的压缩包，另一个就只是 APK 安装包。**推荐使用快速启动工具**，请按照以下步骤操作：
+需要一部已 Root 的设备（Magisk / KernelSU / APatch）。从 Release 页面下载最新的 APK 安装包，按以下步骤操作：
 
-1. 准备手机
-    - 启用开发者选项（具体的自己查一下）
-    - 进入开发者选项，开启 USB 调试
-    - 开启 USB 调试（安全设置），如果有就开启
-    - 开启 USB 安装（允许通过 USB 安装应用）
-    - 如果提示未知来源应用安装，请允许从此来源安装
+1. 安装 Nrfr
+    - 下载并安装最新的 Nrfr APK
+    - 首次启动时，在弹出的 Root 授权弹窗中允许 Nrfr 获取 Root 权限
 
-2. 连接手机到电脑
-    - 使用数据线将手机连接到电脑
-    - 在手机上允许 USB 调试授权
-
-3. 下载并启动 Nrfr 快速启动工具
-    - 从 Release 页面下载最新版本的快速启动工具
-    - 解压并运行 Nrfr 快速启动工具
-    - 工具会自动检测已连接的设备
-
-4. 安装必要组件
-    - 工具会自动安装 Shizuku 到手机
-    - 按照提示启用 Shizuku
-    - 等待工具自动安装 Nrfr 应用
-
-5. 修改国家码
+2. 修改国家码
     - 在手机上打开 Nrfr 应用
     - 选择需要修改的 SIM 卡
-    - 设置目标国家码
-    - 应用修改
+    - 设置目标国家码（如可选自定义运营商名称）
+    - 应用修改，设置立即生效
 
-修改完成后无需重启设备，设置会立即生效并永久保持。如需还原，请使用应用内的还原功能。
+> ⚠️ 修改为内存态覆盖，**重启设备后会失效**，重启后需重新打开 Nrfr 再设置一次。如需还原，请使用应用内的还原功能。
 
 ## 📦 构建
 
@@ -198,8 +180,10 @@ cd app
 
 ## 📝 依赖项
 
-- [Shizuku](https://shizuku.rikka.app/) - 用于提供特权服务
-- [ADB](https://developer.android.com/tools/adb) - Android 调试桥接
+- 已 Root 的设备（Magisk / KernelSU / APatch）- 提供特权服务
+- [libsu](https://github.com/topjohnwu/libsu) - Root 进程管理与 IPC
+
+> 快速启动工具 `nrfr-client` 仍基于 Shizuku + ADB 自动化流程，尚未同步到 Root 方案；当前 Root 版 App 不依赖 Shizuku，推荐直接安装 APK 使用。
 
 ## 🤝 贡献
 
@@ -232,7 +216,8 @@ cd app
 
 ## 🙏 鸣谢
 
-- [Shizuku](https://shizuku.rikka.app/) - 感谢 Shizuku 提供的特权服务支持
+- [libsu](https://github.com/topjohnwu/libsu) - 感谢 libsu 提供的 Root 进程与 IPC 支持
+- [HiddenApiBypass](https://github.com/LSPosed/AndroidHiddenApiBypass) - 感谢其隐藏 API 访问支持
 
 ## 🚀 赞助商
 
