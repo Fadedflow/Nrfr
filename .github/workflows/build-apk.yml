@@ -21,25 +21,31 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "21"
+          java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # ubuntu-latest 已预装 Android SDK（ANDROID_SDK_ROOT / ANDROID_HOME 已设置），
+      # 不用 android-actions/setup-android（该 action 近期在 runner 上不稳定）。
       # 项目用到 ICarrierConfigLoader 等隐藏 API，普通 android.jar 无法编译，
       # 替换为包含隐藏 API 的 AOSP android.jar。
       - name: Replace android.jar with AOSP jar
         run: |
           set -e
-          TARGET="$ANDROID_HOME/platforms/android-34"
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          echo "Using SDK at: $SDK"
+          TARGET="$SDK/platforms/android-34"
           mkdir -p "$TARGET"
           curl -L https://raw.githubusercontent.com/Reginer/aosp-android-jar/refs/heads/main/android-34/android.jar -o "$TARGET/android.jar"
+          ls -l "$TARGET/android.jar"
 
       - name: Build Debug APK
         run: |
-          chmod +x ./gradlew || true
-          gradle wrapper
-          ./gradlew assembleDebug --stacktrace
+          chmod +x ./gradlew 2>/dev/null || true
+          if [ -f ./gradlew ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle wrapper
+            ./gradlew assembleDebug --stacktrace
+          fi
 
       - name: Rename APK
         run: |
