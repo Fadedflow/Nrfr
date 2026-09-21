@@ -90,11 +90,15 @@ class RootService : com.topjohnwu.superuser.ipc.RootService() {
                 bundle.putString(CarrierConfigManager.KEY_CARRIER_NAME_STRING, carrierName)
             }
 
-            carrierConfigLoader().overrideConfig(subId, bundle, true)
+            // persistent=false：带 persistent=true 时框架仅允许 system/phone UID 调用，
+            // libsu :root 进程为 UID 0（root）不在允许名单，会抛
+            // 「overrideConfig with persistent=true only can be invoked by...」。
+            // 改用 false：立即生效的内存态覆盖，root 有权限；代价是重启后失效，需重开 App 再设一次。
+            carrierConfigLoader().overrideConfig(subId, bundle, false)
         }
 
         override fun resetCarrierConfig(subId: Int) {
-            carrierConfigLoader().overrideConfig(subId, null, true)
+            carrierConfigLoader().overrideConfig(subId, null, false)
         }
     }
 }
