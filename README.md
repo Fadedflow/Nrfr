@@ -178,6 +178,24 @@ cd app
 - 快速启动工具: `nrfr-client/build/bin/`
 - Android 应用: `app/build/outputs/apk/`
 
+## 🧩 Root 版实现要点（开发者向）
+
+> Android 应用已从 Shizuku（免 Root）迁移为 Root（libsu `RootService`，UID 0 独立 `:root` 进程）直连 `ICarrierConfigLoader`。
+> 桌面快速启动工具 `nrfr-client` 目前仍走 Shizuku 自动化流程，未改动。
+
+迁移中踩过三个坑，都是「Shizuku 跑在主进程、框架已完整初始化」时被掩盖、换到 libsu 精简 `:root` 进程后才暴露的问题。改动系统级 telephony 调用时务必注意：
+
+1. **隐藏 API 豁免要在 `:root` 进程内单独做。**
+   `:root` 由 libsu 独立 fork，不执行 `MainActivity.onCreate`，只在 Activity 里调 `HiddenApiBypass.addHiddenApiExemptions` 对该进程无效。必须在 `RootService.onCreate` 里再调一次，否则 targetSdk 34 下访问 `ICarrierConfigLoader` / `overrideConfig` 被 ART 拦截，表现为「保存失败」。
+
+2. **`:root` 精简进程里 `TelephonyFrameworkInitializer.getTelephonyServiceManager()` 返回 null。**
+   该静态字段由完整框架初始化流程赋值，精简 `app_process` 没跑到，直接调用会 NPE（`invoke virtual method on null ... TelephonyServiceManager`）。改走 `ServiceManager.getService("carrier_config")` 按名取 binder（任何进程可用），失败再回退。
+
+3. **`overrideConfig` 的 `persistent=true` 只允许 system/phone UID 调用。**
+   Root（UID 0）虽能过 `MODIFY_PHONE_STATE` 权限检查，但不在该分支 UID 白名单内，会抛「overrideConfig with persistent=true only can be invoked by...」。改用 `persistent=false` 走内存态覆盖，root 有权限、立即生效。**代价：重启后覆盖失效，需重开 App 再设置一次。**（这也是 README 上方「重启后永久保持」在 Root 版不再成立的原因。）
+
+对应实现见 `app/src/main/java/com/github/nrfr/service/RootService.kt`。
+
 ## 📝 依赖项
 
 - [Shizuku](https://shizuku.rikka.app/) - 用于提供特权服务
