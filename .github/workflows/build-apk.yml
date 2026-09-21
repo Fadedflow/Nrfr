@@ -1,0 +1,60 @@
+name: Build APK
+
+# 仅构建 Android APK（root 版），跑在 ubuntu-latest 上，比 Windows 的 setup-android 稳定。
+# 触发：推送 apk-v* 标签，或手动 workflow_dispatch。
+on:
+  push:
+    tags:
+      - "apk-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 项目用到 ICarrierConfigLoader 等隐藏 API，普通 android.jar 无法编译，
+      # 替换为包含隐藏 API 的 AOSP android.jar。
+      - name: Replace android.jar with AOSP jar
+        run: |
+          set -e
+          TARGET="$ANDROID_HOME/platforms/android-34"
+          mkdir -p "$TARGET"
+          curl -L https://raw.githubusercontent.com/Reginer/aosp-android-jar/refs/heads/main/android-34/android.jar -o "$TARGET/android.jar"
+
+      - name: Build Debug APK
+        run: |
+          chmod +x ./gradlew || true
+          gradle wrapper
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "nrfr-${GITHUB_REF_NAME}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nrfr-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nrfr-${{ github.ref_name }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
