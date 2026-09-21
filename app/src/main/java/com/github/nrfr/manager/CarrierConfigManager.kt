@@ -2,16 +2,17 @@ package com.github.nrfr.manager
 
 import android.content.Context
 import android.os.Build
-import android.os.PersistableBundle
-import android.telephony.CarrierConfigManager
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyFrameworkInitializer
 import android.telephony.TelephonyManager
-import com.android.internal.telephony.ICarrierConfigLoader
 import com.github.nrfr.model.SimCardInfo
-import rikka.shizuku.ShizukuBinderWrapper
 
+/**
+ * 运营商配置管理（应用进程侧门面）。
+ * 需系统权限的读取/覆盖/还原操作全部委托给运行在 root 进程的 [RootManager.service]，
+ * SIM 卡枚举与运营商名读取在应用进程内用普通 API 完成。
+ */
 object CarrierConfigManager {
+
     fun getSimCards(context: Context): List<SimCardInfo> {
         val simCards = mutableListOf<SimCardInfo>()
         val subId1 = SubscriptionManager.getSubId(0)
@@ -29,35 +30,17 @@ object CarrierConfigManager {
         return simCards
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun getCurrentConfig(subId: Int): Map<String, String> {
-        try {
-            val carrierConfigLoader = ICarrierConfigLoader.Stub.asInterface(
-                ShizukuBinderWrapper(
-                    TelephonyFrameworkInitializer
-                        .getTelephonyServiceManager()
-                        .carrierConfigServiceRegisterer
-                        .get()
-                )
-            )
-            val config = carrierConfigLoader.getConfigForSubId(subId, "com.github.nrfr") ?: return emptyMap()
-
+        return try {
+            val raw = RootManager.service?.getCurrentConfig(subId) ?: return emptyMap()
             val result = mutableMapOf<String, String>()
-
-            // 获取国家码配置
-            config.getString(CarrierConfigManager.KEY_SIM_COUNTRY_ISO_OVERRIDE_STRING)?.let {
-                result["国家码"] = it
+            for ((k, v) in raw) {
+                if (k is String && v is String) result[k] = v
             }
-
-            // 获取运营商名称配置
-            if (config.getBoolean(CarrierConfigManager.KEY_CARRIER_NAME_OVERRIDE_BOOL, false)) {
-                config.getString(CarrierConfigManager.KEY_CARRIER_NAME_STRING)?.let {
-                    result["运营商名称"] = it
-                }
-            }
-
-            return result
+            result
         } catch (e: Exception) {
-            return emptyMap()
+            emptyMap()
         }
     }
 
@@ -85,38 +68,14 @@ object CarrierConfigManager {
     }
 
     fun setCarrierConfig(subId: Int, countryCode: String?, carrierName: String? = null) {
-        val bundle = PersistableBundle()
-
-        // 设置国家码
-        if (!countryCode.isNullOrEmpty() && countryCode.length == 2) {
-            bundle.putString(
-                CarrierConfigManager.KEY_SIM_COUNTRY_ISO_OVERRIDE_STRING,
-                countryCode.lowercase()
-            )
-        }
-
-        // 设置运营商名称
-        if (!carrierName.isNullOrEmpty()) {
-            bundle.putBoolean(CarrierConfigManager.KEY_CARRIER_NAME_OVERRIDE_BOOL, true)
-            bundle.putString(CarrierConfigManager.KEY_CARRIER_NAME_STRING, carrierName)
-        }
-
-        overrideCarrierConfig(subId, bundle)
+        val service = RootManager.service
+            ?: throw IllegalStateException("Root 服务未连接")
+        service.setCarrierConfig(subId, countryCode, carrierName)
     }
 
     fun resetCarrierConfig(subId: Int) {
-        overrideCarrierConfig(subId, null)
-    }
-
-    private fun overrideCarrierConfig(subId: Int, bundle: PersistableBundle?) {
-        val carrierConfigLoader = ICarrierConfigLoader.Stub.asInterface(
-            ShizukuBinderWrapper(
-                TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .carrierConfigServiceRegisterer
-                    .get()
-            )
-        )
-        carrierConfigLoader.overrideConfig(subId, bundle, true)
+        val service = RootManager.service
+            ?: throw IllegalStateException("Root 服务未连接")
+        service.resetCarrierConfig(subId)
     }
 }

@@ -12,8 +12,8 @@ android {
         applicationId = "com.github.nrfr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3 //版本更新 +1
-        versionName = "1.0.3" //同步更新版本号 rfr-client/app.go
+        versionCode = 4 //版本更新 +1
+        versionName = "1.0.4" //同步更新版本号 rfr-client/app.go
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,6 +34,7 @@ android {
     }
     buildFeatures {
         compose = true
+        aidl = true
     }
 }
 
@@ -47,9 +48,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // Shizuku
-    implementation("dev.rikka.shizuku:api:13.1.5")
-    implementation("dev.rikka.shizuku:provider:13.1.5")
+    // libsu (root)
+    implementation("com.github.topjohnwu.libsu:core:6.0.0")
+    implementation("com.github.topjohnwu.libsu:service:6.0.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
 
     testImplementation("junit:junit:4.13.2")

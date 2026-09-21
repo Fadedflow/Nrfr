@@ -78,7 +78,7 @@ fun AboutScreen(onBack: () -> Unit) {
                             "• 修改 SIM 卡的国家码配置，可用于解除部分应用的地区限制\n" +
                                     "• 帮助使用海外 SIM 卡时获得更好的本地化体验\n" +
                                     "• 解决部分应用识别 SIM 卡地区错误的问题\n" +
-                                    "• 无需 Root 权限，无需修改系统文件，安全且可随时还原\n" +
+                                    "• 基于 Root 权限直接覆盖运营商配置，无需修改系统文件，可随时还原\n" +
                                     "• 支持 Android 8 及以上系统版本\n" +
                                     "• 支持双卡设备，可分别配置不同国家码",
                             style = MaterialTheme.typography.bodyMedium
