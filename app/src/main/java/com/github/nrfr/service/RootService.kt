@@ -3,6 +3,7 @@ package com.github.nrfr.service
 import android.content.Intent
 import android.os.IBinder
 import android.os.PersistableBundle
+import android.os.ServiceManager
 import android.telephony.CarrierConfigManager
 import android.telephony.TelephonyFrameworkInitializer
 import com.android.internal.telephony.ICarrierConfigLoader
@@ -29,14 +30,24 @@ class RootService : com.topjohnwu.superuser.ipc.RootService() {
 
     private class RootIpc : IRootService.Stub() {
 
-        /** 获取运营商配置加载器（root 进程直连系统 binder） */
+        /**
+         * 获取运营商配置加载器。
+         *
+         * libsu 的 :root 进程是精简 app_process fork，未跑完整框架初始化，
+         * TelephonyFrameworkInitializer.getTelephonyServiceManager() 返回 null（静态
+         * 字段未被系统 set），故直接走 ServiceManager 按名取 carrier_config binder，
+         * 这在任何进程都可用；失败时再回退到 TelephonyFrameworkInitializer。
+         */
         private fun carrierConfigLoader(): ICarrierConfigLoader {
-            return ICarrierConfigLoader.Stub.asInterface(
-                TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .carrierConfigServiceRegisterer
-                    .get()
-            )
+            val binder: IBinder = try {
+                ServiceManager.getService("carrier_config")
+            } catch (_: Throwable) {
+                null
+            } ?: TelephonyFrameworkInitializer
+                .getTelephonyServiceManager()
+                .carrierConfigServiceRegisterer
+                .get()
+            return ICarrierConfigLoader.Stub.asInterface(binder)
         }
 
         override fun getCurrentConfig(subId: Int): MutableMap<Any?, Any?> {
