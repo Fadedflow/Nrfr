@@ -7,6 +7,7 @@ import android.telephony.CarrierConfigManager
 import android.telephony.TelephonyFrameworkInitializer
 import com.android.internal.telephony.ICarrierConfigLoader
 import com.github.nrfr.IRootService
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 /**
  * 以 root 权限（UID 0）运行的服务（libsu RootService）。
@@ -14,6 +15,15 @@ import com.github.nrfr.IRootService
  * 因此这里直连 ICarrierConfigLoader 内部 binder，无需 Shizuku 的 binder 包装。
  */
 class RootService : com.topjohnwu.superuser.ipc.RootService() {
+
+    override fun onCreate() {
+        super.onCreate()
+        // :root 进程由 libsu 独立 fork，不会执行 MainActivity.onCreate，
+        // 因此需在本进程内单独解除隐藏 API 限制，否则访问
+        // ICarrierConfigLoader / overrideConfig 等隐藏 API 会被 ART 拦截，导致保存失败。
+        HiddenApiBypass.addHiddenApiExemptions("L")
+        HiddenApiBypass.addHiddenApiExemptions("I")
+    }
 
     override fun onBind(intent: Intent): IBinder = RootIpc()
 
