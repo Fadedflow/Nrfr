@@ -77,10 +77,11 @@ class RootService : com.topjohnwu.superuser.ipc.RootService() {
             val bundle = PersistableBundle()
 
             // 国家码（2 位字母）
-            if (!countryCode.isNullOrEmpty() && countryCode.length == 2) {
+            val cc = countryCode?.lowercase()?.takeIf { it.length == 2 }
+            if (cc != null) {
                 bundle.putString(
                     CarrierConfigManager.KEY_SIM_COUNTRY_ISO_OVERRIDE_STRING,
-                    countryCode.lowercase()
+                    cc
                 )
             }
 
@@ -90,11 +91,26 @@ class RootService : com.topjohnwu.superuser.ipc.RootService() {
                 bundle.putString(CarrierConfigManager.KEY_CARRIER_NAME_STRING, carrierName)
             }
 
+            if (bundle.isEmpty) {
+                throw IllegalArgumentException("国家码和运营商名称都为空，无需设置")
+            }
+
             // persistent=false：带 persistent=true 时框架仅允许 system/phone UID 调用，
             // libsu :root 进程为 UID 0（root）不在允许名单，会抛
             // 「overrideConfig with persistent=true only can be invoked by...」。
             // 改用 false：立即生效的内存态覆盖，root 有权限；代价是重启后失效，需重开 App 再设一次。
             carrierConfigLoader().overrideConfig(subId, bundle, false)
+
+            // 写后校验：读回确认覆盖已生效，否则抛异常让 UI 提示用户
+            val check = try {
+                carrierConfigLoader().getConfigForSubId(subId, "com.github.nrfr")
+            } catch (_: Exception) { null }
+            if (cc != null) {
+                val got = check?.getString(CarrierConfigManager.KEY_SIM_COUNTRY_ISO_OVERRIDE_STRING)
+                if (got != cc) {
+                    throw IllegalStateException("系统未接受国家码覆盖（期望 $cc，读回 $got），可能设备不支持")
+                }
+            }
         }
 
         override fun resetCarrierConfig(subId: Int) {

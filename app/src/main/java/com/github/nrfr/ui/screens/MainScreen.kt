@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.github.nrfr.R
+import com.github.nrfr.data.ConfigStore
 import com.github.nrfr.data.CountryPresets
 import com.github.nrfr.data.PresetCarriers
 import com.github.nrfr.manager.CarrierConfigManager
@@ -158,6 +159,8 @@ fun MainScreen(onShowAbout: () -> Unit) {
                 onReset = {
                     try {
                         CarrierConfigManager.resetCarrierConfig(it.subId)
+                        // 同步清除本地保存，开机不再重设
+                        ConfigStore.clear(context, it.subId)
                         Toast.makeText(context, "设置已还原", Toast.LENGTH_SHORT).show()
                         refreshTrigger += 1
                         selectedCountryCode = ""
@@ -184,7 +187,9 @@ fun MainScreen(onShowAbout: () -> Unit) {
                             countryCode,
                             carrierName
                         )
-                        Toast.makeText(context, "设置已保存", Toast.LENGTH_SHORT).show()
+                        // 持久化保存，开机后由 BootReceiver 重新应用
+                        ConfigStore.save(context, simCard.subId, countryCode, carrierName)
+                        Toast.makeText(context, "设置已保存（重启后自动重设）", Toast.LENGTH_SHORT).show()
                         refreshTrigger += 1
                     } catch (e: Exception) {
                         Toast.makeText(context, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
