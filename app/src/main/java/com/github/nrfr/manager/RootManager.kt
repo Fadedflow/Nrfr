@@ -44,6 +44,9 @@ object RootManager {
     /**
      * 绑定 root 服务。首次调用会触发 su 授权弹窗；
      * 授权失败或无 root 时 [callback] 收到 false。
+     *
+     * 注意：ReSukiSU/KernelSU 上首次 Shell.getShell() 可能返回非 root（su 尚未就绪），
+     * 这里自动重试最多 3 次，每次间隔 1 秒并清掉旧 shell 缓存，仍失败才报 false。
      */
     fun bind(callback: (Boolean) -> Unit) {
         onReadyChanged = callback
@@ -51,17 +54,38 @@ object RootManager {
             callback(true)
             return
         }
-        Shell.getShell { shell ->
-            if (!shell.isRoot) {
+        Thread {
+            var shell: com.topjohnwu.superuser.Shell? = null
+            repeat(3) { attempt ->
+                try {
+                    if (attempt > 0) {
+                        try { Shell.getShell().close() } catch (_: Exception) {}
+                        Thread.sleep(1000)
+                    }
+                    val s = Shell.getShell()
+                    if (s.isRoot) {
+                        shell = s
+                        return@repeat
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            val rootShell = shell
+            if (rootShell == null || !rootShell.isRoot) {
                 callback(false)
-                return@getShell
+                return@Thread
             }
             val intent = Intent().setClassName(
                 "com.github.nrfr",
                 RootService::class.java.name
             )
-            LibsuRootService.bind(intent, connection)
-        }
+            try {
+                LibsuRootService.bind(intent, connection)
+            } catch (_: Exception) {
+                callback(false)
+            }
+            // bind 是异步的，成功会走 onServiceConnected -> callback(true)
+        }.start()
     }
 
     /** 解绑 root 服务（应用退出时调用） */
